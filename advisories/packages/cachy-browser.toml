@@ -1,0 +1,34 @@
+[advisory]
+package = "cachy-browser"
+severity = "critical"
+status = "confirmed"
+reported = "2026-06-20"
+updated = "2026-06-26"
+reported_by = "The Cinder Project"
+cve = ""
+
+[details]
+summary = "Maintainer transfer followed by malicious code injection"
+description = """
+On 2026-06-18, the maintainer of cachy-browser transferred ownership of the 
+package to an unknown account. The new maintainer immediately pushed a version 
+that included a post_install() hook executing a remote script via curl | bash.
+
+The script attempted to:
+1. Download and execute a binary from an external server
+2. Modify shell configuration files to establish persistence
+3. Exfiltrate SSH keys and browser cookies
+
+The malicious payload was identified by multiple community members within 
+hours of the update. The package has been flagged out-of-date and the 
+original maintainer has been contacted.
+"""
+affected_versions = ["128.0.2-2", "128.0.2-3"]
+safe_versions = ["128.0.2-1"]
+
+[references]
+urls = [
+  "https://thecinderproject.qd.je/advisories/cachy-browser-2026-06-20",
+  "https://www.reddit.com/r/archlinux/comments/example1",
+  "https://bugs.archlinux.org/example2"
+]
