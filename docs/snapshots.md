@@ -46,7 +46,15 @@ consent=full → queue sanitized PKGBUILD locally
         ↓
 cpac update → batch POST to /api/submit/snapshot
         ↓
-GitHub Actions aggregates into TOML → commits to repo → syncs to Supabase
+Supabase directly (write to DB, skip GitHub entirely)
+        ↓
+GitHub Actions runs on a schedule (e.g. nightly)
+        ↓
+Reads aggregated snapshot data from Supabase
+        ↓
+Compiles + commits updated hashes.toml files to repo
+        ↓
+One single commit per scheduled run, no overlap possible
 ```
 
 Submissions are **queued locally and sent in batch on `cpac update`** — never sent mid-install, never blocking the install flow.

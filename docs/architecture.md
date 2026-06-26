@@ -9,10 +9,8 @@ order: 2
 ## Overview
 
 ```
-GitHub (cpac-trust-db repo)
-  Raw TOML files — human-readable, auditable source of truth
-       ↓
-  GitHub Actions (on merge to main)
+CPAC client
+  POST /api/submit/snapshot → writes directly to Supabase
        ↓
   Supabase (Postgres)
   Compiled, queryable database
@@ -20,21 +18,25 @@ GitHub (cpac-trust-db repo)
   thecinderproject.qd.je/cpac-trust-db/api/*
   Public REST API (proxied through existing domain)
        ↓
-  CPAC client
+  CPAC client reads (GET /api/meta, /api/advisories, /api/snapshots, /api/delta)
   Local cache at ~/.cpac/trust-db/
+       ↑
+  GitHub Actions (runs on schedule, e.g. nightly)
+  Reads aggregated data from Supabase → commits updated TOML to repo
 ```
 
 ## Why This Stack
 
-- **GitHub** — source of truth, fully auditable, human-readable TOML diffs on every advisory or snapshot change. Anyone can verify what's in the database.
-- **Supabase (Postgres)** — stable, mature, generous free tier, auto-generated REST API, row-level security handles public read / authenticated write cleanly. Supabase is already in use elsewhere in The Cinder Project stack.
-- **Custom domain proxy** — `thecinderproject.qd.je/cpac-trust-db/api/*` keeps the API endpoint stable regardless of backend changes. If the backend ever moves from Supabase to something else, the URL doesn't change and no CPAC clients break.
+- **Supabase (Postgres)** — stable, mature, generous free tier, auto-generated REST API, row-level security handles public read / authenticated write cleanly. CPAC clients write directly to Supabase on submission — no GitHub round-trip.
+- **GitHub** — source of truth, fully auditable, human-readable TOML diffs on every advisory or snapshot change. GitHub Actions reads aggregated data from Supabase and commits updated TOML files on a schedule (e.g. nightly). One single commit per run, no overlap possible.
+- **Custom domain proxy** — `thecinderproject.qd.je/cpac-trust-db/api/*` keeps the API endpoint stable regardless of backend changes.
 
 ## Data Flow
 
-1. **Advisories** — Core team merges TOML to `main` → GitHub Actions upserts to Supabase
-2. **Snapshots** — CPAC clients POST to `/api/submit/snapshot` → GitHub Actions aggregates into TOML → commits to repo → syncs to Supabase
-3. **Queries** — CPAC client hits API endpoints → reads from Supabase → caches locally
+1. **Snapshots** — CPAC clients POST to `/api/submit/snapshot` → writes directly to Supabase
+2. **Advisories** — Core team merges TOML to `main` → GitHub Actions upserts to Supabase
+3. **Sync** — GitHub Actions runs nightly → reads from Supabase → commits TOML to repo
+4. **Queries** — CPAC client hits API endpoints → reads from Supabase → caches locally
 
 ---
 

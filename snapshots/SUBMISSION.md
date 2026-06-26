@@ -23,9 +23,11 @@ Queued entries are sent in batch on `cpac update` via `POST /api/submit/snapshot
 ### 3. Aggregation
 
 After submission:
-1. GitHub Actions aggregates entries into TOML files
-2. Commits to the repo (source of truth)
-3. Syncs to Supabase via the sync pipeline
+1. Data is written directly to Supabase (skips GitHub entirely)
+2. GitHub Actions runs on a schedule (e.g. nightly)
+3. Reads aggregated snapshot data from Supabase
+4. Compiles + commits updated `hashes.toml` files to repo
+5. One single commit per scheduled run, no overlap possible
 
 Final storage:
 - `hashes.toml` — hash submissions

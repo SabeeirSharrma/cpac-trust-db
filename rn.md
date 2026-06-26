@@ -14,8 +14,10 @@
 
 ### Architecture
 
-- GitHub repo as auditable source of truth
-- GitHub Actions syncs TOML → Supabase on merge to main
+- CPAC clients write directly to Supabase (skip GitHub entirely)
+- GitHub repo as auditable source of truth (TOML files)
+- GitHub Actions runs on schedule (nightly) — reads from Supabase, commits to repo
+- One single commit per scheduled run, no overlap possible
 - Custom domain proxy (`thecinderproject.qd.je/cpac-trust-db/api/*`)
 - Local cache at `~/.cpac/trust-db/` for offline use
 

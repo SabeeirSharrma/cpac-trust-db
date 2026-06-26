@@ -8,28 +8,31 @@ order: 8
 
 ## Trigger
 
-Push to `main` (advisory added or snapshot aggregated).
+Scheduled (e.g. nightly), not on push.
 
 ## Pipeline Steps
 
 ```
-Trigger: push to main (advisory added or snapshot aggregated)
+Trigger: scheduled (e.g. nightly)
         ↓
-Action 1: Validate TOML schema
+Action 1: Read aggregated snapshot data from Supabase
         ↓
-Action 2: Compile TOML → Supabase (upsert changed records)
+Action 2: Compile + update hashes.toml files
         ↓
-Action 3: Update meta/db.toml with new version hash + timestamp
+Action 3: Commit updated TOML to repo (one single commit per run)
         ↓
-Action 4: Cut a new GitHub release with changelog (advisories only)
+Action 4: Update meta/db.toml with new version hash + timestamp
 ```
 
 ## What It Does
 
-1. **Validates** TOML files against the schema
-2. **Upserts** changed records into Supabase
-3. **Updates** `meta/db.toml` with new version hash and timestamp
-4. **Releases** changelog for advisory changes (not snapshots)
+1. **Reads** aggregated snapshot data from Supabase
+2. **Compiles** updated `hashes.toml` files
+3. **Commits** to the repo (one single commit per scheduled run)
+4. **Updates** `meta/db.toml` with new version hash and timestamp
+
+GitHub Actions runs on a schedule, **not on push**. It reads FROM Supabase
+and commits TO the repo. One single commit per run, no overlap possible.
 
 ---
 

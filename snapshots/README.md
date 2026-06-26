@@ -20,8 +20,8 @@ Crowdsourced PKGBUILD snapshots submitted by CPAC clients for detecting package 
 2. Pass 1 sanitization (strip paths/hostname/IPs/emails)
 3. Pass 2 anomaly detection (flag suspicious patterns)
 4. Queue locally for submission
-5. On `cpac update` → batch POST to `/api/submit/snapshot`
-6. GitHub Actions aggregates into TOML → commits to repo → syncs to Supabase
+5. On `cpac update` → batch POST to `/api/submit/snapshot` → writes directly to Supabase
+6. GitHub Actions runs nightly → reads from Supabase → commits TOML to repo
 
 ## Directory Structure
 
