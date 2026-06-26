@@ -1,0 +1,31 @@
+# Example Advisory — DO NOT MERGE
+# This is a template/example showing the advisory format.
+# Delete this file before publishing real advisories.
+
+[advisory]
+package = "example-malicious-pkg"
+severity = "critical"
+status = "confirmed"
+reported = "2026-06-26"
+updated = "2026-06-26"
+reported_by = "The Cinder Project"
+cve = ""
+
+[details]
+summary = "Example advisory — PKGBUILD modified to execute remote script"
+description = """
+This is an example advisory demonstrating the format. 
+
+On 2026-06-24, the maintainer of example-malicious-pkg transferred ownership 
+to an unknown account. The new maintainer introduced a curl | bash call in 
+the post_install() function targeting an external IP address.
+
+This is fictional and for documentation purposes only.
+"""
+affected_versions = ["1.0.0-1", "1.0.1-1"]
+safe_versions = ["1.0.2-1"]
+
+[references]
+urls = [
+  "https://thecinderproject.qd.je/advisories/example-malicious-pkg-2026-06-26"
+]

@@ -1,8 +1,8 @@
 [meta]
-version = "abc123"                  # hash of current DB state (compared against /api/meta)
+version = "e3b0c44298fc"            # hash of current DB state (compared against /api/meta)
 db_version = "1.0.0"
 last_updated = "2026-06-26"
-last_sync = "2026-06-26T12:00:00Z"  # timestamp of last successful sync
-advisory_count = 0
+last_sync = "2026-06-26T00:00:00Z"  # timestamp of last successful sync
+advisory_count = 0                  # excludes example file
 snapshot_package_count = 0
 schema_version = 1

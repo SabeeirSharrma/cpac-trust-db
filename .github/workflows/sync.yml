@@ -1,0 +1,55 @@
+name: Sync Trust DB
+
+on:
+  schedule:
+    # Run nightly at 03:00 UTC
+    - cron: "0 3 * * *"
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install requests toml
+
+      - name: Sync advisories to Supabase
+        run: python scripts/sync_advisories_to_supabase.py
+
+      - name: Sync snapshots from Supabase
+        run: python scripts/sync_snapshots_from_supabase.py
+
+      - name: Update meta/db.toml
+        run: python scripts/update_meta.py
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add -A
+          
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            git commit -m "chore: nightly sync — ${TIMESTAMP}"
+            git push
+          fi
