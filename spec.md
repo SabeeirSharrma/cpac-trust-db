@@ -9,76 +9,156 @@
 
 `cpac-trust-db` is the trust data backend for CPAC. It stores two categories of data:
 
-1. **PKGBUILD snapshots** — anonymized, crowdsourced snapshots submitted by CPAC users,
-   used to detect divergence from known-good package states
+1. **PKGBUILD snapshots** — anonymized, crowdsourced snapshots submitted by CPAC
+   clients, used to detect divergence from known-good package states
 2. **Advisories** — maintainer-curated records of known malicious, compromised, or
    suspicious packages (e.g. Atomic Arch-style hijacks)
-
-CPAC syncs a local copy of this database on `cpac update` and queries it entirely
-offline at runtime. No live network request is made during `cpac install`, `cpac trust`,
-or `cpac audit` — only during sync.
 
 ---
 
 ## Architecture
 
 ```
-cpac-trust-db/
-├── advisories/
-│   ├── README.md              # Advisory submission guidelines
-│   ├── schema.md              # Advisory format specification
-│   └── packages/
-│       ├── <package-name>.toml   # One file per flagged package
-│       └── ...
-├── snapshots/
-│   ├── README.md              # Snapshot submission guidelines
-│   ├── schema.md              # Snapshot format specification
-│   └── packages/
-│       ├── <package-name>/
-│       │   ├── hashes.toml    # Aggregated hash submissions
-│       │   └── pkgbuilds/     # Full PKGBUILD submissions (opt-in)
-│       └── ...
-├── meta/
-│   └── db.toml                # Database version, last updated, schema version
-└── README.md
+GitHub (cpac-trust-db repo)
+  Raw TOML files — human-readable, auditable source of truth
+       ↓
+  GitHub Actions (on merge to main)
+       ↓
+  Supabase (Postgres)
+  Compiled, queryable database
+       ↓
+  thecinderproject.qd.je/cpac-trust-db/api/*
+  Public REST API (proxied through existing domain)
+       ↓
+  CPAC client
+  Local cache at ~/.cpac/trust-db/
 ```
+
+### Why this stack
+
+- **GitHub** — source of truth, fully auditable, human-readable TOML diffs on every
+  advisory or snapshot change. Anyone can verify what's in the database.
+- **Supabase (Postgres)** — stable, mature, generous free tier, auto-generated REST API,
+  row-level security handles public read / authenticated write cleanly. Supabase is
+  already in use elsewhere in The Cinder Project stack.
+- **Custom domain proxy** — `thecinderproject.qd.je/cpac-trust-db/api/*` keeps the
+  API endpoint stable regardless of backend changes. If the backend ever moves from
+  Supabase to something else, the URL doesn't change and no CPAC clients break.
 
 ---
 
-## How CPAC Consumes It
+## API Endpoints
+
+All endpoints are public read. Writes require an authenticated token.
+
+### Meta
 
 ```
-cpac update
-    ↓
-Pull latest cpac-trust-db (git pull or HTTP fetch)
-    ↓
-Store locally at ~/.cpac/trust-db/
-    ↓
-cpac install / cpac trust / cpac audit
-    ↓
-Query local copy — no network required
-    ↓
-Expired local copy → warn user to run cpac update
+GET /api/meta
+→ {
+    version: "abc123",          # hash of current DB state
+    updated_at: "2026-06-26T12:00:00Z",
+    advisory_count: 12,
+    snapshot_package_count: 847,
+    schema_version: 1
+  }
 ```
 
-### Local storage
+Used by CPAC clients to check if their local cache is stale without
+downloading full data. This is the only request made on every `cpac install`.
+
+### Advisories
+
+```
+GET /api/advisories
+→ [ ...all advisories... ]
+
+GET /api/advisories/<package-name>
+→ advisory object or 404
+```
+
+### Snapshots
+
+```
+GET /api/snapshots/<package-name>
+→ { hashes: [...], pkgbuilds: [...] }
+
+GET /api/snapshots/<package-name>/<version>
+→ snapshot entries for a specific version
+```
+
+### Delta sync
+
+```
+GET /api/delta?since=<timestamp>
+→ { advisories: [...changed...], snapshots: [...changed...] }
+```
+
+Used by `cpac update` to pull only records that changed since the last sync,
+rather than re-downloading the full database every time.
+
+### Submissions (authenticated)
+
+```
+POST /api/submit/snapshot
+Authorization: Bearer <token>
+→ Submit a PKGBUILD hash or full sanitized PKGBUILD
+```
+
+Tokens are issued per CPAC installation on first run (anonymous, non-identifying).
+Used for rate limiting and abuse prevention only — not for identifying users.
+
+---
+
+## Staleness Check System
+
+CPAC never blindly re-downloads the full database. Instead it uses a
+lightweight two-step check:
+
+### Step 1 — Meta check (every cpac install/trust/audit)
+
+```
+GET /api/meta
+  → { version: "abc123" }
+          ↓
+Compare against local ~/.cpac/trust-db/meta.toml
+  → version matches?  Use local cache. Done. (one cheap HTTP request)
+  → version differs?  Queue a delta sync for next cpac update.
+  → no local cache?   Fetch full DB immediately.
+```
+
+### Step 2 — Delta sync (cpac update, or when meta check detects change)
+
+```
+GET /api/delta?since=<last_sync_timestamp>
+  → only changed advisories and snapshots since last sync
+          ↓
+Merge into local cache
+          ↓
+Update local meta.toml with new version hash + timestamp
+```
+
+This means:
+- `cpac install` — one lightweight GET to `/api/meta`, no full sync
+- `cpac update` — full delta sync if version hash changed, no-op if already current
+- **Offline** — local cache is always used if network is unavailable, never blocks
+
+---
+
+## Local Cache
 
 ```
 ~/.cpac/trust-db/
-  advisories.db     # compiled advisory index (fast lookup by package name)
-  snapshots.db      # compiled snapshot index (fast lookup by package + version)
-  meta.toml         # last sync timestamp, db version
+  meta.toml           # version hash, last sync timestamp, schema version
+  advisories.db       # compiled advisory index (fast lookup by package name)
+  snapshots.db        # compiled snapshot index (fast lookup by package + version)
 ```
 
-CPAC compiles the raw TOML/text from the repo into a local binary database format
-on sync, so runtime queries are fast and don't require parsing the raw repo files.
+The raw TOML from the GitHub repo is compiled into a local binary format on sync,
+so runtime queries are fast and don't require network access.
 
-### Sync behavior
-
-- `cpac update` pulls the latest `cpac-trust-db` as part of its normal run
-- If the local copy is stale (configurable, default: synced with cache TTL),
-  CPAC warns the user but continues using the local copy — **never blocks on network**
-- If no local copy exists yet (fresh install), CPAC fetches on first run
+If the local cache is stale and the network is unavailable, CPAC warns the user
+but continues using the local copy — **never blocks on network.**
 
 ---
 
@@ -86,11 +166,10 @@ on sync, so runtime queries are fast and don't require parsing the raw repo file
 
 ### 1. Advisories (maintainer-curated)
 
-Maintained directly by The Cinder Project core team. Each advisory is a TOML file:
+Maintained directly by The Cinder Project core team. Stored as TOML in the
+GitHub repo, synced to Supabase via GitHub Actions on merge.
 
 ```toml
-# advisories/packages/malicious-pkg.toml
-
 [advisory]
 package = "malicious-pkg"
 severity = "critical"          # critical | high | medium | low
@@ -101,102 +180,22 @@ reported_by = "The Cinder Project"
 cve = ""                       # if applicable
 
 [details]
-summary = "Package PKGBUILD modified to execute remote script post-install"
+summary = "PKGBUILD modified to execute remote script post-install"
 description = """
-On 2026-06-14, the maintainer of malicious-pkg transferred ownership and
-introduced a curl | bash call in the post_install() function targeting
-an external IP. Confirmed via Atomic Arch incident analysis.
+On 2026-06-14, maintainer transferred ownership and introduced a
+curl | bash call targeting an external IP.
 """
 affected_versions = ["1.2.3-1", "1.2.4-1"]
-safe_versions = []             # empty = no known safe version
+safe_versions = []
 
 [references]
-urls = [
-  "https://thecinderproject.qd.je/advisories/malicious-pkg-2026-06-14"
-]
+urls = ["https://thecinderproject.qd.je/advisories/malicious-pkg-2026-06-14"]
 ```
 
-**Submission:** Maintainer-only. Open a GitHub issue with evidence; core team
-reviews and merges. No automated submissions for advisories.
+**Submission:** Community members report via GitHub issue or Discord. Core team
+reviews evidence and publishes. No automated advisory submissions.
 
-**Effect on trust score:** A confirmed advisory applies a `-30` penalty to the
-affected package's trust score, regardless of other signals. A suspected advisory
-applies `-15`.
-
----
-
-### 2. PKGBUILD Snapshots (automated client submissions)
-
-Submitted anonymously by CPAC clients that have opted into crowdsourced sharing.
-Two formats depending on user consent level:
-
-#### Hash submissions (consent level: `hash`)
-
-```toml
-# snapshots/packages/firefox/hashes.toml
-
-[[entry]]
-version = "152.0.1-1"
-sha256 = "abc123..."           # SHA-256 of the full PKGBUILD text
-submitted_count = 847          # how many clients submitted this hash
-first_seen = "2026-05-01"
-last_seen = "2026-06-20"
-
-[[entry]]
-version = "152.0.1-1"
-sha256 = "def456..."           # different hash = potential divergence
-submitted_count = 2
-first_seen = "2026-06-14"
-last_seen = "2026-06-14"
-```
-
-#### Full PKGBUILD submissions (consent level: `full`)
-
-```
-snapshots/packages/firefox/pkgbuilds/
-  152.0.1-1_abc123.pkgbuild    # filename = version + hash
-  152.0.1-1_def456.pkgbuild    # minority hash — potentially suspicious
-```
-
-Full PKGBUILDs are sanitized through Pass 1 structural redaction before submission
-(local paths, hostname, local IPs, non-public emails stripped). See `CPAC_SPEC.md`
-for the full sanitization pipeline.
-
-**Submission:** Automated only. CPAC clients submit directly; no manual PRs for
-snapshot data. Submissions are batched and aggregated, not stored individually
-per-user (no way to trace a submission back to a specific user).
-
-**Effect on trust score:** A package where the user's PKGBUILD hash matches the
-majority consensus gets a trust signal boost. A package where the user's hash
-matches a small minority (or no known submissions) gets a warning signal.
-
----
-
-## Submission Pipeline
-
-```
-User runs: cpac install some-aur-package
-               ↓
-CPAC fetches PKGBUILD locally
-               ↓
-Pass 1 sanitization (strip paths/hostname/IPs/emails)
-               ↓
-Pass 2 anomaly detection (flag suspicious patterns → trust signals)
-               ↓
-If consent = hash:  compute SHA-256, queue for submission
-If consent = full:  queue sanitized PKGBUILD for submission
-               ↓
-On next cpac update: batch-submit queued entries to cpac-trust-db API
-               ↓
-Aggregated into hashes.toml / pkgbuilds/ in the repo
-```
-
-Submissions are **queued locally** and sent in batch on `cpac update` — never
-sent mid-install, never blocking the install flow.
-
----
-
-## Advisory Severity → Trust Score Impact
+### Advisory Severity → Trust Score Impact
 
 | Severity | Trust Penalty | Recommendation Floor |
 |---|---|---|
@@ -209,21 +208,97 @@ sent mid-install, never blocking the install flow.
 
 ---
 
-## Database Versioning
+### 2. PKGBUILD Snapshots (automated client submissions)
 
-`meta/db.toml` tracks the schema version so CPAC can handle breaking changes:
+Submitted anonymously by CPAC clients that opted into crowdsourced sharing.
+Two formats depending on user consent level.
+
+#### Hash submissions (consent: `hash`)
 
 ```toml
-[meta]
-db_version = "1.0.0"
-last_updated = "2026-06-26"
-advisory_count = 12
-snapshot_package_count = 847
-schema_version = 1
+[[entry]]
+version = "152.0.1-1"
+sha256 = "abc123..."
+submitted_count = 847
+first_seen = "2026-05-01"
+last_seen = "2026-06-20"
+
+[[entry]]
+version = "152.0.1-1"
+sha256 = "def456..."           # minority hash — potential divergence
+submitted_count = 2
+first_seen = "2026-06-14"
+last_seen = "2026-06-14"
 ```
 
-If CPAC encounters a `schema_version` higher than it supports, it warns the
-user to update CPAC rather than silently misreading the data.
+#### Full PKGBUILD submissions (consent: `full`)
+
+Stored as sanitized PKGBUILD text. Pass 1 structural redaction (local paths,
+hostname, local IPs, non-public emails) runs locally before submission.
+See `CPAC_SPEC.md` for the full sanitization pipeline.
+
+**Submission:** Automated only via `POST /api/submit/snapshot`. No manual PRs
+for snapshot data. Submissions are batched on `cpac update`, never sent
+mid-install.
+
+**Effect on trust score:**
+- Hash matches majority consensus → positive trust signal
+- Hash matches small minority or no known submissions → warning signal
+
+---
+
+## Submission Pipeline
+
+```
+cpac install some-aur-package
+        ↓
+Fetch PKGBUILD locally
+        ↓
+Pass 1 sanitization (strip paths/hostname/IPs/emails)
+        ↓
+Pass 2 anomaly detection (flag suspicious patterns → trust signals, shown to user)
+        ↓
+consent=hash → compute SHA-256, queue locally
+consent=full → queue sanitized PKGBUILD locally
+        ↓
+cpac update → batch POST to /api/submit/snapshot
+        ↓
+GitHub Actions aggregates into TOML → commits to repo → syncs to Supabase
+```
+
+Submissions are **queued locally and sent in batch on `cpac update`** — never
+sent mid-install, never blocking the install flow.
+
+---
+
+## GitHub Actions Pipeline
+
+```
+Trigger: push to main (advisory added or snapshot aggregated)
+        ↓
+Action 1: Validate TOML schema
+        ↓
+Action 2: Compile TOML → Supabase (upsert changed records)
+        ↓
+Action 3: Update meta/db.toml with new version hash + timestamp
+        ↓
+Action 4: Cut a new GitHub release with changelog (advisories only)
+```
+
+---
+
+## Auth Model
+
+| Operation | Auth Required |
+|---|---|
+| Read advisories | None — fully public |
+| Read snapshots | None — fully public |
+| GET /api/meta | None — fully public |
+| POST /api/submit/snapshot | Bearer token (per-install, anonymous) |
+| Write advisories | Maintainer only (Supabase RLS) |
+
+Anonymous tokens are issued on first CPAC run. They are used for rate limiting
+and abuse prevention only — not linked to any user identity.
 
 ---
 
@@ -231,12 +306,49 @@ user to update CPAC rather than silently misreading the data.
 
 | Data Type | Who Can Submit | Review Required |
 |---|---|---|
-| Advisories | Core team only | Yes — maintainer merge |
-| PKGBUILD snapshots (hash) | Automated CPAC clients | No — aggregated automatically |
-| PKGBUILD snapshots (full) | Automated CPAC clients | No — aggregated automatically |
+| Advisories | Core team only (via GitHub PR) | Yes — maintainer merge |
+| Snapshots (hash) | Automated CPAC clients | No — aggregated automatically |
+| Snapshots (full) | Automated CPAC clients | No — aggregated automatically |
 
-Community members can **report** potential advisories via GitHub issues or the
-Discord server. Core team reviews evidence and publishes the advisory if confirmed.
+---
+
+## Repository Structure
+
+```
+cpac-trust-db/
+├── advisories/
+│   ├── README.md
+│   ├── schema.md
+│   └── packages/
+│       └── <package-name>.toml
+├── snapshots/
+│   ├── README.md
+│   ├── schema.md
+│   └── packages/
+│       └── <package-name>/
+│           ├── hashes.toml
+│           └── pkgbuilds/
+├── meta/
+│   └── db.toml
+├── .github/
+│   └── workflows/
+│       └── sync.yml           # GitHub Actions → Supabase pipeline
+└── README.md
+```
+
+---
+
+## Roadmap
+
+- [ ] Supabase schema setup (advisories + snapshots tables)
+- [ ] GitHub Actions sync pipeline (TOML → Supabase)
+- [ ] `/api/meta` endpoint
+- [ ] `/api/advisories` + `/api/snapshots` endpoints
+- [ ] `/api/delta` endpoint
+- [ ] CPAC integration — meta check on install, delta sync on update
+- [ ] Submission pipeline — anonymous tokens, batch POST on update
+- [ ] First advisory entries (Atomic Arch affected packages)
+- [ ] Public advisory index on website
 
 ---
 
@@ -244,19 +356,9 @@ Discord server. Core team reviews evidence and publishes the advisory if confirm
 
 | Project | Role |
 |---|---|
-| `cpac` | Consumes cpac-trust-db; submits snapshots on `cpac update` |
-| `cinderos` | Ships CPAC (and therefore cpac-trust-db) by default |
-| `website` | Advisory public index at `thecinderproject.qd.je/advisories` |
-
----
-
-## Roadmap
-
-- [ ] Initial advisory schema + first entries
-- [ ] Snapshot aggregation pipeline (automated client submissions)
-- [ ] CPAC integration — sync on `cpac update`, query local copy
-- [ ] Public advisory index on website
-- [ ] Schema v2 — richer metadata (maintainer transfer history, popularity trends)
+| `cpac` | Consumes trust-db; submits snapshots on `cpac update` |
+| `cinderos` | Ships CPAC (and therefore trust-db) by default |
+| `website` | Public advisory index at `thecinderproject.qd.je/advisories` |
 
 ---
 

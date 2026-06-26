@@ -18,11 +18,16 @@ When a user runs `cpac install`, `cpac trust`, or `cpac audit`:
 
 ### 2. Submission on Next Update
 
-Queued entries are sent in batch on `cpac update` — never mid-install, never blocking the install flow.
+Queued entries are sent in batch on `cpac update` via `POST /api/submit/snapshot` — never mid-install, never blocking the install flow.
 
 ### 3. Aggregation
 
-Submissions are aggregated into:
+After submission:
+1. GitHub Actions aggregates entries into TOML files
+2. Commits to the repo (source of truth)
+3. Syncs to Supabase via the sync pipeline
+
+Final storage:
 - `hashes.toml` — hash submissions
 - `pkgbuilds/` — full PKGBUILD submissions (opt-in)
 
