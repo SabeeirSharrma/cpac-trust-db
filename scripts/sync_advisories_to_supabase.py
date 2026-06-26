@@ -74,7 +74,10 @@ def main():
         print("No advisories directory found, skipping")
         return
 
-    advisory_files = list(ADVISORIES_DIR.glob("*.toml"))
+    advisory_files = [
+        f for f in ADVISORIES_DIR.glob("*.toml")
+        if not f.name.startswith("_")  # Skip example/template files
+    ]
     if not advisory_files:
         print("No advisory files found")
         return
