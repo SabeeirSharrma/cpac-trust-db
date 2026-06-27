@@ -4,6 +4,23 @@ All notable changes to cpac-trust-db are documented here.
 
 ---
 
+## 2026-06-28
+
+### Auth & Role-Based Panels
+
+- New migration: `20260628000000_add_auth_and_roles.sql`
+  - `profiles` table (links Supabase Auth users to roles)
+  - `pending_advisories` table (volunteer submissions awaiting review)
+  - `daily_submission_counts` view (rate limiting)
+  - `approve_advisory()` and `reject_advisory()` RPC functions
+  - Daily rate limit trigger (5/day per volunteer)
+  - RLS policies for role-based access
+- Panel pages: login, volunteer dashboard, maintainer dashboard
+- Client-side comparer: fetches PKGBUILD from AUR, runs comparison logic in browser
+- Approval workflow: volunteer submits → pending queue → maintainer approves/rejects
+
+---
+
 ## 2026-06-27
 
 ### API Proxy Worker (Cloudflare Workers)

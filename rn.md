@@ -1,5 +1,27 @@
 # Release Notes
 
+## v1.2.0 — 2026-06-28
+
+**Auth panels, volunteer/maintainer workflow, and web comparer.**
+
+### What's New
+
+- **Maintainer panel** — Review and approve/reject volunteer advisory submissions
+- **Volunteer panel** — Submit advisories (rate-limited: 5/day), use comparer tool
+- **Login page** — Supabase Auth email/password, role-based redirect
+- **Client-side comparer** — Fetches PKGBUILD from AUR, computes SHA-256, compares against trust DB, shows verdict
+- **Approval workflow** — Volunteer submits → pending queue → maintainer approves (goes live) or rejects (with notes)
+- **Database tables** — `profiles`, `pending_advisories`, `daily_submission_counts` view
+- **RPC functions** — `approve_advisory()`, `reject_advisory()`
+- **Rate limit trigger** — Enforces 5 submissions/day per volunteer at database level
+
+### Access
+
+- No public signups — accounts created via Discord ticket
+- Panels at `/cpac-trust-db/web/panel/login`
+
+---
+
 ## v1.1.0 — 2026-06-27
 
 **Trust DB client integration + advisory entries + snapshot seeding.**
