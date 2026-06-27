@@ -80,5 +80,6 @@ cpac-trust-db/
 
 # Made By
 
-**Owner/Main Developer: [Sabeeir Sharrma](https://github.com/SabeeirSharrma)
+**Owner/Main Developer: [Sabeeir Sharrma](https://github.com/SabeeirSharrma)**
+
 *Part of The Cinder Project — github.com/SabeeirSharrma/cpac-trust-db*
