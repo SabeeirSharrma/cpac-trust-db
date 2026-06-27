@@ -13,6 +13,8 @@
 1. **PKGBUILD snapshots** — anonymized, crowdsourced snapshots submitted by CPAC clients, used to detect divergence from known-good package states
 2. **Advisories** — maintainer-curated records of known malicious, compromised, or suspicious packages (e.g. Atomic Arch-style hijacks)
 
+CPAC clients connect via a Cloudflare Worker proxy at `api.thecinderproject.qd.je` which forwards to Supabase.
+
 ---
 
 ## Documentation
@@ -57,6 +59,11 @@ cpac-trust-db/
 │   ├── sync_advisories_to_supabase.py
 │   ├── sync_snapshots_to_supabase.py
 │   └── sync_snapshots_from_supabase.py
+├── worker/
+│   ├── src/index.ts
+│   ├── wrangler.toml
+│   ├── package.json
+│   └── README.md
 ├── supabase/
 │   └── migrations/
 ├── web/

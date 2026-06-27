@@ -6,7 +6,7 @@
 
 ### What's New
 
-- **CPAC client integration** — Direct Supabase REST API calls from CPAC (no proxy needed)
+- **CPAC client integration** — Client connects via Cloudflare Worker proxy at `api.thecinderproject.qd.je`
 - **Advisory entries** — 6 published advisories:
   - Atomic Arch campaign (1600+ AUR packages compromised)
   - snapd-git, ipfs-desktop-bin, perl-alien-wxwidgets, premake-git
@@ -20,7 +20,7 @@
 
 ### Architecture Updates
 
-- CPAC clients talk directly to Supabase (domain proxy not yet set up)
+- CPAC clients connect via API proxy at `api.thecinderproject.qd.je` → Cloudflare Worker → Supabase
 - GitHub repo remains auditable source of truth (TOML files)
 - GitHub Actions nightly sync: advisories→Supabase, snapshots→Supabase, snapshots←Supabase
 - Local cache at `~/.cpac/trust-db/` for offline use
@@ -53,7 +53,6 @@
 
 ### Known Limitations
 
-- Custom domain proxy not set up (GitHub Pages is static)
 - Schema v2 planned (maintainer transfer history, popularity trends)
 
 ---
