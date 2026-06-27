@@ -32,6 +32,9 @@ jobs:
       - name: Sync advisories to Supabase
         run: python scripts/sync_advisories_to_supabase.py
 
+      - name: Sync snapshot hashes to Supabase
+        run: python scripts/sync_snapshots_to_supabase.py
+
       - name: Sync snapshots from Supabase
         run: python scripts/sync_snapshots_from_supabase.py
 
