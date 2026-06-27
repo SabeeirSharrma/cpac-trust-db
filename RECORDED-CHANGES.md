@@ -6,6 +6,14 @@ All notable changes to cpac-trust-db are documented here.
 
 ## 2026-06-27
 
+### API Proxy Worker (Cloudflare Workers)
+
+- Scaffolded `worker/` directory with Cloudflare Worker project
+- Worker proxies `thecinderproject.qd.je/cpac-trust-db/api/*` → Supabase `/rest/v1/*`
+- Handles CORS, header forwarding, client token pass-through
+- DNS: CNAME from desec.io → workers.dev (pending setup)
+- Incomplete: path rewrite for snapshots/{pkg}/{ver} and submission endpoints not yet implemented
+
 ### Trust DB Client Integration
 
 - Added CPAC client `trust_db` module with direct Supabase REST API calls
