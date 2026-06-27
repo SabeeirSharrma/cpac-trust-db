@@ -53,6 +53,14 @@ cpac-trust-db/
 │           └── pkgbuilds/
 ├── meta/
 │   └── db.toml
+├── scripts/
+│   ├── sync_advisories_to_supabase.py
+│   ├── sync_snapshots_to_supabase.py
+│   └── sync_snapshots_from_supabase.py
+├── supabase/
+│   └── migrations/
+├── web/
+│   └── index.astro
 ├── docs/
 │   ├── index.md
 │   ├── architecture.md

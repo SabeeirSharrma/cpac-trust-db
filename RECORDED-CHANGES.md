@@ -4,6 +4,55 @@ All notable changes to cpac-trust-db are documented here.
 
 ---
 
+## 2026-06-27
+
+### Trust DB Client Integration
+
+- Added CPAC client `trust_db` module with direct Supabase REST API calls
+- Added meta check, full sync, and delta sync
+- Added anonymous client tokens (UUID-based rate limiting)
+- Added snapshot submission pipeline with local queue
+- Added consent-aware submissions (hash-only or full sanitized PKGBUILD)
+- Added auto-sync during `cpac install` and `cpac update`
+
+### Schema Changes
+
+- Added `pkgbuild_text TEXT` column to `snapshots` table
+- Updated `upsert_snapshot` function to accept `p_pkgbuild_text`
+- Migration: `20260627000001_add_pkgbuild_text.sql`
+
+### Advisory Entries Published
+
+- Atomic Arch campaign (1600+ AUR packages compromised)
+- snapd-git, ipfs-desktop-bin, perl-alien-wxwidgets, premake-git
+- cachy-browser (unconfirmed)
+
+### Snapshot Seed Data
+
+- Legitimate: firefox, git, vim, python, nodejs, base-devel
+- Compromised: snapd-git, ipfs-desktop-bin, perl-alien-wxwidgets, premake-git (known-bad hashes)
+
+### PKGBUILD Sanitization
+
+- Pass 1: Structural redaction (URLs, maintainer, comments, local files)
+- Pass 2: Anomaly detection (8 categories, 6 tests)
+- SHA-256 hashing for fast consensus checking
+- Pre-flight intelligence check with verdicts (Clean, AdvisoryHit, Divergent, Outdated, Unknown)
+
+### Release Workflow
+
+- GitHub Actions release workflow (x86_64 + aarch64 binaries)
+- SHA-256 checksums, GitHub Release with assets
+- Switched to rustls-tls (no OpenSSL dependency)
+
+### Infrastructure
+
+- RLS policies opened for REST API compatibility (public data, rate limiting at app level)
+- GitHub Actions nightly sync: advisories→Supabase, snapshots→Supabase, snapshots←Supabase
+- Custom domain proxy not yet set up (GitHub Pages is static)
+
+---
+
 ## 2026-06-26
 
 ### Initial Release
