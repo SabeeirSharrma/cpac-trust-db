@@ -1,0 +1,36 @@
+[advisory]
+package = "atomic-arch-campaign"
+severity = "critical"
+status = "confirmed"
+reported = "2026-06-11"
+updated = "2026-06-13"
+reported_by = "The Cinder Project"
+cve = ""
+
+[details]
+summary = "Atomic Arch supply-chain attack: 1600+ AUR packages hijacked to deploy infostealer and eBPF rootkit"
+description = """
+On June 11, 2026, attackers systematically adopted orphaned AUR packages and modified
+their PKGBUILDs to install malicious npm packages (atomic-lockfile, js-digest, lockfile-js).
+
+The attack proceeded in two waves:
+1. Wave 1 (June 11): ~408 packages modified to run `npm install atomic-lockfile`
+2. Wave 2 (June 12): ~1200+ packages modified to run `bun install js-digest`
+
+The malicious packages deployed a Rust-based credential stealer with optional eBPF
+rootkit capabilities, targeting GitHub credentials, SSH keys, browser cookies,
+Slack/Discord/Teams data, and HashiCorp Vault tokens.
+
+Attacker AUR accounts: krisztinavarga, franziskaweber, tobiaswesterburg,
+ellenmyklebust, custodiatovar, veramagalhaes
+"""
+affected_versions = ["*"]
+safe_versions = []
+
+[references]
+urls = [
+  "https://www.sonatype.com/blog/atomic-arch-npm-campaign-adds-malicious-dependency",
+  "https://www.bleepingcomputer.com/news/security/over-400-arch-linux-packages-compromised-to-push-rootkit-infostealer/",
+  "https://github.com/lenucksi/aur-malware-check",
+  "https://bbs.archlinux.org/viewtopic.php?id=313892",
+]

@@ -1,0 +1,13 @@
+[[entry]]
+version = "0.20.0-1"
+sha256 = "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3"
+submitted_count = 8
+first_seen = "2026-02-01"
+last_seen = "2026-06-10"
+
+[[entry]]
+version = "0.20.0-1"
+sha256 = "COMPROMISED_atomic-lockfile-injected-9g5b3d6f7e8c0a2b4d6f8e0c2a4b6d8f"
+submitted_count = 2
+first_seen = "2026-06-11"
+last_seen = "2026-06-11"

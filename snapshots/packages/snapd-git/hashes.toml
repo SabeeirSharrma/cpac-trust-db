@@ -1,0 +1,13 @@
+[[entry]]
+version = "2.61.2.r38.g37ce3b3-1"
+sha256 = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
+submitted_count = 12
+first_seen = "2026-01-15"
+last_seen = "2026-06-10"
+
+[[entry]]
+version = "2.61.2.r38.g37ce3b3-1"
+sha256 = "COMPROMISED_atomic-lockfile-injected-8f4a2b3c5d6e7f8a9b0c1d2e3f4a5b6c"
+submitted_count = 3
+first_seen = "2026-06-11"
+last_seen = "2026-06-11"

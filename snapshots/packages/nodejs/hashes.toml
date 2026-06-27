@@ -1,0 +1,13 @@
+[[entry]]
+version = "24.2.0-1"
+sha256 = "c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0"
+submitted_count = 160
+first_seen = "2026-06-05"
+last_seen = "2026-06-27"
+
+[[entry]]
+version = "24.1.0-1"
+sha256 = "d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1"
+submitted_count = 100
+first_seen = "2026-05-15"
+last_seen = "2026-06-08"

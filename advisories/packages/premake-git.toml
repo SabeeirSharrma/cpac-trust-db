@@ -1,0 +1,25 @@
+[advisory]
+package = "premake-git"
+severity = "critical"
+status = "confirmed"
+reported = "2026-06-11"
+updated = "2026-06-11"
+reported_by = "The Cinder Project"
+cve = ""
+
+[details]
+summary = "Hijacked AUR package — Atomic Arch campaign delivered infostealer via post_install hook"
+description = """
+The premake-git package was compromised as part of the Atomic Arch campaign.
+The PKGBUILD was modified to install the malicious atomic-lockfile npm package.
+
+All versions published after June 11, 2026 by attacker accounts are compromised.
+"""
+affected_versions = ["*"]
+safe_versions = []
+
+[references]
+urls = [
+  "https://bbs.archlinux.org/viewtopic.php?id=313892",
+  "https://github.com/lenucksi/aur-malware-check",
+]
