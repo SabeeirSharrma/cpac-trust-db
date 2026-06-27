@@ -6,20 +6,22 @@ order: 3
 
 # API Endpoints
 
-All endpoints are served directly by Supabase REST API. There is no custom domain proxy — CPAC clients talk to Supabase at:
+All endpoints are served through a Cloudflare Worker proxy at:
 
 ```
-https://qzhhsyucnlswmsvpssdh.supabase.co
+https://api.thecinderproject.qd.je/cpac-trust-db/api
 ```
 
-All reads are public (anon key). Writes require an anonymous client token (rate limiting only, not authentication).
+The worker proxies requests to Supabase at `https://qzhhsyucnlswmsvpssdh.supabase.co/rest/v1/*`.
+
+All reads are public. Writes require an anonymous client token (rate limiting only, not authentication).
 
 ---
 
 ## Meta
 
 ```text
-GET /rest/v1/meta?select=*
+GET /cpac-trust-db/api/meta
 → [{
     version: "abc123",          # hash of current DB state
     updated_at: "2026-06-26T12:00:00Z",
@@ -36,10 +38,10 @@ Used by CPAC clients to check if their local cache is stale without downloading 
 ## Advisories
 
 ```text
-GET /rest/v1/advisories?select=*&order=reported.desc
+GET /cpac-trust-db/api/advisories
 → [ ...all advisories... ]
 
-GET /rest/v1/advisories?select=*&package=eq.<package-name>
+GET /cpac-trust-db/api/advisories?package=eq.<package-name>
 → advisory object or empty array
 ```
 
@@ -48,10 +50,10 @@ GET /rest/v1/advisories?select=*&package=eq.<package-name>
 ## Snapshots
 
 ```text
-GET /rest/v1/snapshots?select=*&package=eq.<package-name>
+GET /cpac-trust-db/api/snapshots?package=eq.<package-name>
 → [ ...snapshot entries for a package... ]
 
-GET /rest/v1/snapshots?select=*&package=eq.<package-name>&version=eq.<version>
+GET /cpac-trust-db/api/snapshots?package=eq.<package-name>&version=eq.<version>
 → snapshot entries for a specific version
 ```
 
@@ -60,7 +62,7 @@ GET /rest/v1/snapshots?select=*&package=eq.<package-name>&version=eq.<version>
 ## Submissions (Authenticated)
 
 ```text
-POST /rest/v1/snapshots
+POST /cpac-trust-db/api/snapshots
 Authorization: Bearer <anon-key>
 X-Client-Token: <anonymous-token>
 Content-Type: application/json

@@ -1,6 +1,6 @@
 # cpac-trust-db API Worker
 
-Cloudflare Worker that proxies `thecinderproject.qd.je/cpac-trust-db/api/*` to Supabase.
+Cloudflare Worker that proxies `api.thecinderproject.qd.je/cpac-trust-db/api/*` to Supabase.
 
 ## Setup
 
@@ -16,19 +16,15 @@ npx wrangler deploy
 Add a CNAME record:
 
 ```
-Name: thecinderproject.qd.je
+Name: api
 Type: CNAME
-Value: cpac-trust-db-api.<your-subdomain>.workers.dev
-TTL: 300
+Value: cpac-trust-db-api.sabplay-idk.workers.dev
+TTL: 3600
 ```
+
+This makes the proxy available at `https://api.thecinderproject.qd.je/cpac-trust-db/api/*`.
 
 ## Endpoints
-
-After deploy, the worker is available at:
-
-```
-https://cpac-trust-db-api.<your-subdomain>.workers.dev/cpac-trust-db/api/*
-```
 
 Proxied to Supabase `/rest/v1/*`:
 
