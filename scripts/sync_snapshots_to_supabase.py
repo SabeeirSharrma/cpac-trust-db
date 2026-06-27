@@ -33,14 +33,18 @@ def load_snapshot_entries(package_name: str, path: Path) -> list:
 
     result = []
     for entry in entries:
-        result.append({
+        row = {
             "package": package_name,
             "version": entry.get("version"),
             "sha256": entry.get("sha256"),
             "submitted_count": entry.get("submitted_count", 0),
             "first_seen": entry.get("first_seen"),
             "last_seen": entry.get("last_seen"),
-        })
+        }
+        # Include pkgbuild_text if present (consent=full submissions)
+        if "pkgbuild_text" in entry:
+            row["pkgbuild_text"] = entry["pkgbuild_text"]
+        result.append(row)
 
     return result
 
