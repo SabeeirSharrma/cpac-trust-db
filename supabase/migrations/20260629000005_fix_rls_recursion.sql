@@ -69,6 +69,7 @@ CREATE POLICY "profiles_delete_admin" ON profiles
 -- Fix pending_advisories policies (use helper functions)
 -- ============================================================
 
+DROP POLICY IF EXISTS "pending_select_own" ON pending_advisories;
 DROP POLICY IF EXISTS "pending_select_maintainers" ON pending_advisories;
 DROP POLICY IF EXISTS "pending_select_admin" ON pending_advisories;
 DROP POLICY IF EXISTS "pending_insert_volunteers" ON pending_advisories;
