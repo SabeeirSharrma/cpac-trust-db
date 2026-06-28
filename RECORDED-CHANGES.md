@@ -4,6 +4,32 @@ All notable changes to cpac-trust-db are documented here.
 
 ---
 
+## 2026-06-30 — Bidirectional Advisory Statuses
+
+### Advisory Status Update
+
+- New migration: `20260630000000_update_advisory_statuses.sql`
+- Advisory statuses are now **bidirectional trust attestations**:
+  - `safe` — positive attestation, package verified clean
+  - `suspicious` — under investigation, proceed with caution
+  - `warning` — credible concern, not yet confirmed
+  - `malicious` — confirmed malicious
+  - `resolved` — was malicious/suspicious, now clean
+- Old `confirmed` → `warning`, old `suspected` → `suspicious`
+- `confirmed_malicious` dropped — `malicious` is sufficient
+
+### CHECK Constraint Changes
+
+- `advisories.status`: `('safe', 'suspicious', 'warning', 'malicious', 'resolved')`
+- `pending_advisories.status`: `('safe', 'suspicious', 'warning', 'malicious')`
+
+### Panel Updates
+
+- Status dropdown in all three panels: Suspicious (default), Warning, Malicious, Safe
+- Status labels include descriptions (e.g. "Suspicious — under investigation")
+
+---
+
 ## 2026-06-28 — Phase 9: NVIDIA NIM Integration
 
 ### Worker: NVIDIA NIM Proxy

@@ -1,5 +1,36 @@
 # Release Notes
 
+## v1.8.0 — 2026-06-30
+
+**Bidirectional advisory statuses — trust attestations in both directions.**
+
+### What's New
+
+- **Bidirectional advisory statuses** — advisories are now trust attestations, not just threat flags:
+  - `safe` — positive attestation, package verified clean (+10 trust signal)
+  - `suspicious` — under investigation, proceed with caution (-15)
+  - `warning` — credible concern, not yet confirmed (-20)
+  - `malicious` — confirmed malicious (-30)
+  - `resolved` — was malicious/suspicious, now clean (0, neutral)
+- **Old status migration**: `confirmed` → `warning`, `suspected` → `suspicious`
+- **`confirmed_malicious` dropped** — `malicious` is sufficient (publication implies maintainer review)
+
+### Database Changes
+
+- **New migration:** `20260630000000_update_advisory_statuses.sql`
+- **CHECK constraints updated** on `advisories` and `pending_advisories`
+- **Data migrated** to new status values
+- **`approve_advisory()`** and **`reject_advisory()`** recreated with SECURITY DEFINER
+
+### Migration
+
+```sql
+-- Run in Supabase SQL editor:
+-- supabase/migrations/20260630000000_update_advisory_statuses.sql
+```
+
+---
+
 ## v1.7.0 — 2026-06-28
 
 **NVIDIA NIM AI integration, panel redesign, cron-triggered email reports.**
