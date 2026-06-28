@@ -4,18 +4,26 @@
 -- Old statuses: confirmed, suspected, resolved
 -- New statuses: safe, suspicious, warning, malicious, resolved
 --
---safe        → positive attestation, package verified clean (+10)
---suspicious  → under investigation, proceed with caution (-15)
---warning     → credible concern, not yet confirmed (-20)
---malicious   → confirmed malicious (-30)
---resolved    → was malicious/suspicious, now clean (0, neutral)
+-- safe        → positive attestation, package verified clean (+10)
+-- suspicious  → under investigation, proceed with caution (-15)
+-- warning     → credible concern, not yet confirmed (-20)
+-- malicious   → confirmed malicious (-30)
+-- resolved    → was malicious/suspicious, now clean (0, neutral)
 -- ============================================================
 
--- 1. Drop old CHECK constraints
+-- 1. Drop old CHECK constraints (before data migration)
 ALTER TABLE advisories DROP CONSTRAINT IF EXISTS advisories_status_check;
 ALTER TABLE pending_advisories DROP CONSTRAINT IF EXISTS pending_advisories_status_check;
 
--- 2. Add new CHECK constraints
+-- 2. Migrate existing data FIRST (before adding new constraints)
+UPDATE advisories SET status = 'warning' WHERE status = 'confirmed';
+UPDATE advisories SET status = 'suspicious' WHERE status = 'suspected';
+-- resolved stays as resolved
+
+UPDATE pending_advisories SET status = 'warning' WHERE status = 'confirmed';
+UPDATE pending_advisories SET status = 'suspicious' WHERE status = 'suspected';
+
+-- 3. NOW add new CHECK constraints (all data already matches)
 ALTER TABLE advisories
   ADD CONSTRAINT advisories_status_check
   CHECK (status IN ('safe', 'suspicious', 'warning', 'malicious', 'resolved'));
@@ -23,14 +31,6 @@ ALTER TABLE advisories
 ALTER TABLE pending_advisories
   ADD CONSTRAINT pending_advisories_status_check
   CHECK (status IN ('safe', 'suspicious', 'warning', 'malicious'));
-
--- 3. Migrate existing data: confirmed → warning, suspected → suspicious
-UPDATE advisories SET status = 'warning' WHERE status = 'confirmed';
-UPDATE advisories SET status = 'suspicious' WHERE status = 'suspected';
--- resolved stays as resolved
-
-UPDATE pending_advisories SET status = 'warning' WHERE status = 'confirmed';
-UPDATE pending_advisories SET status = 'suspicious' WHERE status = 'suspected';
 
 -- 4. Update default for pending_advisories
 ALTER TABLE pending_advisories ALTER COLUMN status SET DEFAULT 'suspicious';
@@ -120,7 +120,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 6. Update reject_advisory() with strike integration
+-- 6. Update reject_advisory()
 CREATE OR REPLACE FUNCTION reject_advisory(
   p_pending_id UUID,
   p_reviewed_by UUID,
