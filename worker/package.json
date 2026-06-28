@@ -10,5 +10,8 @@
     "@cloudflare/workers-types": "^4.20260627.0",
     "typescript": "^5.5.0",
     "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "resend": "^6.16.0"
   }
 }

@@ -1,5 +1,116 @@
 # Release Notes
 
+## v1.6.0 — 2026-06-29
+
+**Weekly advisory reports via email, staggered by account creation date.**
+
+### What's New
+
+- **Email log** — `email_log` table tracks all sent emails (weekly reports, suspension notices)
+- **Report queue** — `report_queue` table holds generated reports (ephemeral: sent → deleted)
+- **`get_volunteers_for_today()`** — returns volunteers whose report day matches today
+- **`get_weekly_submissions()`** — returns submissions for a volunteer in a date range
+- **`cleanup_old_reports()`** — deletes sent reports older than 7 days
+- **`POST /reports/generate`** — generates weekly reports for volunteers due today
+- **`POST /reports/send`** — sends queued reports via Resend, logs in email_log
+- **Staggered schedule** — reports sent based on account creation day of week (Mon→Mon, etc.)
+- **Zero activity = no email** — volunteers with no submissions that week receive no report
+
+### Database Changes
+
+- **New tables:** `email_log`, `report_queue`
+- **New functions:** `get_volunteers_for_today()`, `get_weekly_submissions()`, `cleanup_old_reports()`
+
+### Migration
+
+```bash
+# Run in Supabase SQL editor:
+# 1. supabase/migrations/20260629000004_add_email_notifications.sql
+```
+
+---
+
+## v1.5.0 — 2026-06-29
+
+**Reputation system, strike tracking, and volunteer stats.**
+
+### What's New
+
+- **Strike tracking** — `profiles.strikes` column; rejected submissions increment strikes, approved submissions reduce strikes
+- **Trust tiers** — Trusted (80%+ rate, 20+ approved), Standard, Probation (2 strikes), Suspended (3+ strikes)
+- **Volunteer reputation view** — approval rate, submission counts, active days, trust tier per volunteer
+- **Maintainer reputation view** — reviews conducted, active review days per maintainer
+- **`reject_advisory_with_strike()`** — rejects submission and increments strike count
+- **`approve_advisory_with_reputation()`** — approves submission and reduces strikes by 1
+- **`check_volunteer_inactivity_detailed()`** — returns inactive volunteers with trust tier info
+
+### Database Changes
+
+- **New column:** `profiles.strikes` (INTEGER, default 0)
+- **New views:** `volunteer_reputation`, `maintainer_reputation`
+- **New functions:** `reject_advisory_with_strike()`, `approve_advisory_with_reputation()`, `check_volunteer_inactivity_detailed()`
+
+### Migration
+
+```bash
+# Run in Supabase SQL editor:
+# 1. supabase/migrations/20260629000003_add_reputation_system.sql
+```
+
+---
+
+## v1.4.0 — 2026-06-29
+
+**Advisory lifecycle, snapshot retention, and storage management.**
+
+### What's New
+
+- **Advisory versioning** — `advisory_history` table stores append-only version history; `advisories` always holds current state
+- **`approve_advisory()` updated** — now snapshots existing advisory into history before overwriting (UPSERT logic)
+- **Snapshot retention** — `cleanup_old_snapshots()` removes old version snapshots (2-day/5-day retention based on package size, core packages never cleaned)
+- **Core package protection** — `is_core_package()` function identifies 40+ packages that are never cleaned up
+- **Storage tracking** — `package_storage_usage` view shows per-package stats and activity status
+- **Cleanup queue** — `packages_flagged_for_cleanup` view lists packages inactive 30+ days
+- **Inactivity check** — `check_volunteer_inactivity()` identifies volunteers with zero submissions in 30+ days
+
+### Database Changes
+
+- **New table:** `advisory_history`
+- **New functions:** `is_core_package()`, `cleanup_old_snapshots()`, `check_volunteer_inactivity()`
+- **New views:** `package_storage_usage`, `packages_flagged_for_cleanup`
+- **Modified function:** `approve_advisory()` — snapshots history before update
+- **New migration:** `20260629000001_advisory_lifecycle.sql`
+
+---
+
+## v1.3.0 — 2026-06-28
+
+**Comparer redesign, AI analysis cache, and AUR CORS proxy.**
+
+### What's New
+
+- **Version-focused comparer** — Select any two versions of a package to compare PKGBUILDs side-by-side
+- **Package search autocomplete** — Search by DB snapshots or AUR with dropdown
+- **Line-by-line diff** — LCS-based diff with added/removed line highlighting
+- **Suspicious pattern detection** — 8 categories (curl/wget pipe, eval, rm -rf, npm/bun/npx pipe, hex escapes, base64)
+- **AI analysis** — On-demand "Analyze with AI" button, 3-hour cache in `ai_analysis` table
+- **Recompare** — Re-run comparison with different versions
+- **Maintainer comparer tab** — Same version-comparison workflow available to maintainers
+- **AUR CORS proxy** — Worker now proxies `/aur/info/<pkg>` and `/aur/pkgbuild/<pkg>` (browser can't fetch AUR directly)
+
+### Database Changes
+
+- **New table:** `ai_analysis` — caches AI analysis results with 3-hour expiry
+- **New migration:** `20260629000000_add_ai_analysis.sql`
+
+### Worker Changes
+
+- Added AUR proxy endpoints: `/cpac-trust-db/api/aur/info/<pkg>`, `/cpac-trust-db/api/aur/pkgbuild/<pkg>`
+- Added CORS preflight (`OPTIONS`) handling
+- Refactored with shared `CORS_HEADERS` constant
+
+---
+
 ## v1.2.0 — 2026-06-28
 
 **Auth panels, volunteer/maintainer workflow, and web comparer.**

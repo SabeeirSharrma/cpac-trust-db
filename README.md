@@ -8,12 +8,48 @@
 
 ## What is cpac-trust-db?
 
-`cpac-trust-db` is the trust data backend for CPAC. It stores two categories of data:
+`cpac-trust-db` is the trust data backend for CPAC. It stores:
 
 1. **PKGBUILD snapshots** — anonymized, crowdsourced snapshots submitted by CPAC clients, used to detect divergence from known-good package states
 2. **Advisories** — maintainer-curated records of known malicious, compromised, or suspicious packages (e.g. Atomic Arch-style hijacks)
+3. **Advisory history** — append-only version history of advisory changes (never overwritten)
+4. **AI analysis cache** — on-demand AI analysis results cached for 3 hours
 
 CPAC clients connect via a Cloudflare Worker proxy at `api.thecinderproject.qd.je` which forwards to Supabase.
+
+---
+
+## Features
+
+### Advisory Lifecycle
+- Advisories are versioned (append-only history, never overwritten)
+- Each package has one canonical "current" advisory plus version history
+- Snapshot retention: 2-5 days based on package size, core packages never cleaned
+
+### Reputation System
+- **Strike tracking** — rejected submissions increment strikes, approved submissions reduce strikes
+- **Trust tiers** — Trusted (80%+ rate, 20+ approved), Standard, Probation (2 strikes), Suspended (3+ strikes)
+- **Volunteer/maintainer reputation views** — approval rates, active days, submission counts
+
+### Email Notifications
+- **Weekly advisory reports** — HTML email with submission summary, approval rate, trust tier
+- **Staggered sending** — reports sent based on account creation day (Mon→Mon, etc.)
+- **Zero activity = no email** — volunteers with no submissions that week receive no report
+
+### Admin Panel
+- Account management (create volunteer/maintainer/admin accounts)
+- Pending advisory review
+- Published advisories viewer
+- Package comparer with suspicious pattern detection
+- Volunteer reputation stats
+- Inactivity monitoring
+
+### Worker Endpoints
+- `GET /aur/info/<pkg>` — AUR RPC proxy (CORS fix for browser)
+- `GET /aur/pkgbuild/<pkg>` — PKGBUILD fetch proxy
+- `POST /accounts/create` — admin account creation (generates random password, sends email)
+- `POST /reports/generate` — generates weekly reports for volunteers due today
+- `POST /reports/send` — sends queued reports via Resend
 
 ---
 

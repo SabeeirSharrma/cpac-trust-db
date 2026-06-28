@@ -4,6 +4,21 @@ All notable changes to cpac-trust-db are documented here.
 
 ---
 
+## 2026-06-29
+
+### Advisory Lifecycle & Data Management
+
+- New migration: `20260629000001_advisory_lifecycle.sql`
+  - `advisory_history` table (append-only version history)
+  - `is_core_package()` function (40+ core packages never cleaned)
+  - `cleanup_old_snapshots()` function (2-day/5-day retention)
+  - `check_volunteer_inactivity()` function (30-day inactivity check)
+  - `package_storage_usage` view (per-package stats)
+  - `packages_flagged_for_cleanup` view (inactive 30+ days)
+- Modified `approve_advisory()` — now snapshots existing advisory into history before overwriting (UPSERT logic)
+
+---
+
 ## 2026-06-28
 
 ### Auth & Role-Based Panels
