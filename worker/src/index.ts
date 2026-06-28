@@ -696,7 +696,7 @@ async function handleAiGenerateReport(request: Request, env: Env): Promise<Respo
     trust_tier: string;
   };
 
-  const systemPrompt = `You are a report assistant for the CPAC Trust DB project. Generate a brief, encouraging weekly summary for a volunteer based on their submission data.
+  const systemPrompt = `You are a report assistant for The Cinder Project, under the CPAC Trust DB division. Generate a brief, encouraging weekly summary for a volunteer based on their submission data.
 
 Respond with valid JSON only, no markdown fences:
 {
