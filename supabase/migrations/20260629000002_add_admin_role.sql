@@ -14,41 +14,37 @@ ALTER TABLE profiles ADD CONSTRAINT profiles_role_check
 -- 2. ADMIN RLS POLICIES (can do everything)
 -- ============================================================
 
+-- Helper function to check if current user is admin (avoids recursive RLS)
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin');
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
 -- Admins can read all profiles
 CREATE POLICY "profiles_select_admin" ON profiles
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR SELECT USING (is_admin());
 
 -- Admins can insert any profile (create accounts)
 CREATE POLICY "profiles_insert_admin_manage" ON profiles
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR INSERT WITH CHECK (is_admin());
 
 -- Admins can update any profile (suspend, change roles)
 CREATE POLICY "profiles_update_admin" ON profiles
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR UPDATE USING (is_admin());
 
 -- Admins can delete any profile (delete accounts)
 CREATE POLICY "profiles_delete_admin" ON profiles
-  FOR DELETE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR DELETE USING (is_admin());
 
 -- Admins can read all pending advisories
 CREATE POLICY "pending_select_admin" ON pending_advisories
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR SELECT USING (is_admin());
 
 -- Admins can update any pending advisory (approve/reject on behalf)
 CREATE POLICY "pending_update_admin" ON pending_advisories
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+  FOR UPDATE USING (is_admin());
 
 -- ============================================================
 -- 3. ADMIN-ONLY FUNCTIONS
