@@ -35,8 +35,9 @@ ALTER TABLE pending_advisories
 -- 4. Update default for pending_advisories
 ALTER TABLE pending_advisories ALTER COLUMN status SET DEFAULT 'suspicious';
 
--- 5. Update approve_advisory() to handle new statuses
-CREATE OR REPLACE FUNCTION approve_advisory(
+-- 5. Drop and recreate approve_advisory()
+DROP FUNCTION IF EXISTS approve_advisory(UUID, UUID, TEXT);
+CREATE FUNCTION approve_advisory(
   p_pending_id UUID,
   p_reviewed_by UUID,
   p_review_notes TEXT DEFAULT ''
@@ -120,8 +121,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 6. Update reject_advisory()
-CREATE OR REPLACE FUNCTION reject_advisory(
+-- 6. Drop and recreate reject_advisory()
+DROP FUNCTION IF EXISTS reject_advisory(UUID, UUID, TEXT);
+CREATE FUNCTION reject_advisory(
   p_pending_id UUID,
   p_reviewed_by UUID,
   p_review_notes TEXT DEFAULT ''
