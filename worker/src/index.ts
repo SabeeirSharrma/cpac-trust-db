@@ -19,6 +19,33 @@ const CORS_HEADERS = {
 };
 
 export default {
+  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
+    const now = new Date();
+    console.log(`[cron] Running daily report job at ${now.toISOString()}`);
+
+    // Step 1: Generate reports for volunteers due today
+    const genRes = await fetch("https://cpac-trust-db-api.sabplay-idk.workers.dev/cpac-trust-db/api/reports/generate", {
+      method: "POST",
+    });
+    const genData = await genRes.json() as { generated?: string[]; skipped?: string[]; error?: string };
+    if (genData.error) {
+      console.error(`[cron] Generate failed: ${genData.error}`);
+    } else {
+      console.log(`[cron] Generated: ${genData.generated?.length ?? 0}, Skipped: ${genData.skipped?.length ?? 0}`);
+    }
+
+    // Step 2: Send queued reports via Resend
+    const sendRes = await fetch("https://cpac-trust-db-api.sabplay-idk.workers.dev/cpac-trust-db/api/reports/send", {
+      method: "POST",
+    });
+    const sendData = await sendRes.json() as { sent?: string[]; failed?: string[]; error?: string };
+    if (sendData.error) {
+      console.error(`[cron] Send failed: ${sendData.error}`);
+    } else {
+      console.log(`[cron] Sent: ${sendData.sent?.length ?? 0}, Failed: ${sendData.failed?.length ?? 0}`);
+    }
+  },
+
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
