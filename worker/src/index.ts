@@ -5,7 +5,12 @@ export interface Env {
   SUPABASE_ANON_KEY: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   RESEND_API_KEY: string;
+  NVIDIA_API_KEY: string;
 }
+
+const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
+const NVIDIA_MODEL_DIFF = "nvidia/nemotron-3-super-120b-a12b";
+const NVIDIA_MODEL_REPORT = "nvidia/nemotron-3-nano-30b-a3b";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -61,6 +66,18 @@ export default {
     // Sends queued reports via Resend, logs in email_log, deletes from queue
     if (route === "/reports/send" && request.method === "POST") {
       return handleReportSend(env);
+    }
+
+    // ── AI diff analysis: POST /cpac-trust-db/api/ai/analyze-diff ──
+    // Calls NVIDIA NIM reasoning model to analyze PKGBUILD diff
+    if (route === "/ai/analyze-diff" && request.method === "POST") {
+      return handleAiAnalyzeDiff(request, env);
+    }
+
+    // ── AI report insights: POST /cpac-trust-db/api/ai/generate-report ──
+    // Calls NVIDIA NIM to generate AI insights for weekly reports
+    if (route === "/ai/generate-report" && request.method === "POST") {
+      return handleAiGenerateReport(request, env);
     }
 
     // ── Supabase proxy: /cpac-trust-db/api/... → /rest/v1/... ──
@@ -483,4 +500,223 @@ async function handleReportSend(env: Env): Promise<Response> {
   }
 
   return json({ sent: sent.length, failed: failed.length, details: { sent, failed } });
+}
+
+// ══════════════════════════════════════════════
+//  NVIDIA NIM — AI helpers
+// ══════════════════════════════════════════════
+
+async function callNvidiaNim(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userContent: string,
+  maxTokens = 2048
+): Promise<{ content: string; error?: string }> {
+  try {
+    const res = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        temperature: 0.3,
+        max_tokens: maxTokens,
+        stream: false,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      return { content: "", error: `NVIDIA NIM error ${res.status}: ${err}` };
+    }
+
+    const data = await res.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    const content = data.choices?.[0]?.message?.content || "";
+    return { content };
+  } catch (e) {
+    return { content: "", error: `NVIDIA NIM request failed: ${String(e)}` };
+  }
+}
+
+// ── AI diff analysis handler ──
+async function handleAiAnalyzeDiff(request: Request, env: Env): Promise<Response> {
+  const body = await request.json() as {
+    package: string;
+    version_old: string;
+    version_new: string;
+    old_pkgbuild?: string;
+    new_pkgbuild?: string;
+    diff_text?: string;
+    suspicious_patterns?: Array<{ line: number; label: string; severity: string }>;
+  };
+
+  if (!body.package || !body.version_old || !body.version_new) {
+    return json({ error: "Missing required fields: package, version_old, version_new" }, 400);
+  }
+
+  const systemPrompt = `You are a security analyst for Arch Linux packages (AUR). Analyze PKGBUILD diffs for security concerns.
+
+Respond with valid JSON only, no markdown fences:
+{
+  "recommendation": "safe|suspicious|malicious",
+  "analysis": "brief security analysis",
+  "advisory_severity": "none|low|medium|high|critical",
+  "summary": "one-line advisory summary if suspicious/malicious, empty if safe",
+  "affected_versions": ["version1"],
+  "safe_versions": ["version2"],
+  "references": ["https://..."]
+}
+
+Focus on:
+- Remote code execution (curl/wget pipe to shell)
+- Obfuscated code (base64, hex escapes)
+- Data exfiltration (network calls to unknown hosts)
+- Privilege escalation (sudo, chmod, PATH modification)
+- Supply chain attacks (unusual dependencies, mirror changes)`;
+
+  let userContent = `Package: ${body.package}\nVersions: ${body.version_old} → ${body.version_new}\n\n`;
+
+  if (body.suspicious_patterns && body.suspicious_patterns.length > 0) {
+    userContent += `Suspicious patterns detected:\n`;
+    body.suspicious_patterns.forEach(p => {
+      userContent += `- [${p.severity.toUpperCase()}] Line ${p.line}: ${p.label}\n`;
+    });
+    userContent += `\n`;
+  }
+
+  if (body.diff_text) {
+    userContent += `Diff:\n${body.diff_text.substring(0, 6000)}\n\n`;
+  }
+
+  if (body.old_pkgbuild) {
+    userContent += `OLD PKGBUILD (${body.version_old}):\n${body.old_pkgbuild.substring(0, 3000)}\n\n`;
+  }
+
+  if (body.new_pkgbuild) {
+    userContent += `NEW PKGBUILD (${body.version_new}):\n${body.new_pkgbuild.substring(0, 3000)}\n\n`;
+  }
+
+  const result = await callNvidiaNim(env.NVIDIA_API_KEY, NVIDIA_MODEL_DIFF, systemPrompt, userContent, 2048);
+
+  if (result.error) {
+    return json({ error: result.error }, 502);
+  }
+
+  // Try to parse JSON from the response
+  let analysis;
+  try {
+    // Strip markdown fences if present
+    const cleaned = result.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    analysis = JSON.parse(cleaned);
+  } catch {
+    analysis = {
+      recommendation: "suspicious",
+      analysis: result.content,
+      advisory_severity: "medium",
+      summary: `AI analysis for ${body.package} ${body.version_old} → ${body.version_new}`,
+      affected_versions: [body.version_old],
+      safe_versions: [body.version_new],
+      references: [],
+    };
+  }
+
+  // Store in ai_analysis cache
+  const diffHash = await computeHash(body.old_pkgbuild || "" + "---" + (body.new_pkgbuild || ""));
+  await fetch(`${env.SUPABASE_URL}/rest/v1/ai_analysis`, {
+    method: "POST",
+    headers: {
+      "apikey": env.SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      package: body.package,
+      version_old: body.version_old,
+      version_new: body.version_new,
+      diff_hash: diffHash,
+      analysis: JSON.stringify(analysis),
+      recommendation: analysis.recommendation || "suspicious",
+      expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+    }),
+  });
+
+  return json(analysis);
+}
+
+// ── AI report insights handler ──
+async function handleAiGenerateReport(request: Request, env: Env): Promise<Response> {
+  const body = await request.json() as {
+    volunteer_name: string;
+    submissions: Array<{
+      package: string;
+      severity: string;
+      status: string;
+      review_status: string;
+      date: string;
+    }>;
+    summary: { total: number; approved: number; rejected: number; pending: number };
+    approval_rate: number;
+    trust_tier: string;
+  };
+
+  const systemPrompt = `You are a report assistant for the CPAC Trust DB project. Generate a brief, encouraging weekly summary for a volunteer based on their submission data.
+
+Respond with valid JSON only, no markdown fences:
+{
+  "highlights": "2-3 sentence summary of their contributions this week",
+  "feedback": "brief constructive feedback on their submission quality",
+  "recommendation": "one actionable suggestion for improvement or next steps"
+}
+
+Keep the tone professional but encouraging. Focus on actionable insights.`;
+
+  let userContent = `Volunteer: ${body.volunteer_name}\n`;
+  userContent += `Trust tier: ${body.trust_tier}\n`;
+  userContent += `Approval rate: ${body.approval_rate}%\n`;
+  userContent += `This week: ${body.summary.total} submitted, ${body.summary.approved} approved, ${body.summary.rejected} rejected, ${body.summary.pending} pending\n\n`;
+
+  if (body.submissions.length > 0) {
+    userContent += `Submissions:\n`;
+    body.submissions.forEach(s => {
+      userContent += `- ${s.package} (${s.severity}/${s.status}) → ${s.review_status} on ${s.date}\n`;
+    });
+  }
+
+  const result = await callNvidiaNim(env.NVIDIA_API_KEY, NVIDIA_MODEL_REPORT, systemPrompt, userContent, 1024);
+
+  if (result.error) {
+    return json({ error: result.error }, 502);
+  }
+
+  let insights;
+  try {
+    const cleaned = result.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    insights = JSON.parse(cleaned);
+  } catch {
+    insights = {
+      highlights: result.content.substring(0, 500),
+      feedback: "",
+      recommendation: "",
+    };
+  }
+
+  return json(insights);
+}
+
+async function computeHash(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
