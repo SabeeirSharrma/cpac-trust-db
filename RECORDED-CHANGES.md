@@ -4,6 +4,69 @@ All notable changes to cpac-trust-db are documented here.
 
 ---
 
+## 2026-06-28 — Phase 9: NVIDIA NIM Integration
+
+### Worker: NVIDIA NIM Proxy
+
+- Added `callNvidiaNim()` helper — OpenAI-compatible API calls to `https://integrate.api.nvidia.com/v1/chat/completions`
+- **`POST /ai/analyze-diff`** — calls `nvidia/nemotron-3-super-120b-a12b` reasoning model
+  - Accepts: package, versions, old/new PKGBUILD, suspicious patterns
+  - Returns: `{recommendation, analysis, summary, advisory_severity, affected_versions, safe_versions, references}`
+  - Stores result in `ai_analysis` cache (3-hour TTL)
+- **`POST /ai/generate-report`** — calls `nvidia/nemotron-3-nano-30b-a3b` for volunteer weekly report insights
+  - Accepts: volunteer name, submissions, approval rate, trust tier
+  - Returns: `{highlights, feedback, recommendation}`
+- `NVIDIA_API_KEY` added to `wrangler.toml` and Worker env
+
+### Worker: Scheduled Cron Trigger
+
+- Added `scheduled()` handler to Worker exports
+- Calls `POST /reports/generate` then `POST /reports/send` daily at midnight UTC
+- Config migrated from `wrangler.toml` to `wrangler.jsonc` (preferred format)
+- Cron trigger: `0 0 * * *` (daily)
+
+### Panel Updates
+
+- All panels: `runAiAnalysisBase()` calls Worker `/ai/analyze-diff` endpoint (not direct Supabase)
+- All panels: `renderAiResult()` handles structured JSON response (summary, severity, affected/safe versions)
+- Cache check still reads from Supabase `ai_analysis` table (3-hour TTL)
+
+---
+
+## 2026-06-28 — Phase 8: Panel Redesign
+
+### Unified Review Tab
+
+- Replaced old "Comparer" tab with "Review" tab in all three panels
+- Package list auto-fetched on tab load (packages needing advisories)
+- Automated LCS diff on package select
+- AI analysis on-demand (3-hour cache)
+- Layout toggle: Tabs or Side-by-Side, persisted to `localStorage`
+- Notes system: floating button, textarea, auto-save to `localStorage`, cleared on publish
+
+### Volunteer Panel
+
+- Review tab + My Submissions tab
+- Same workflow as maintainer but submits to pending queue (not direct publish)
+
+### Maintainer Panel
+
+- Review tab + Pending/Published/Stats/Volunteers tabs
+- Can publish directly or review volunteer submissions
+
+### Admin Panel
+
+- Review tab + Accounts/Pending/Published/Inactivity/Stats tabs
+- Can do everything maintainers can + create/suspend/delete accounts
+
+### NetworkError Fix
+
+- Panels were calling unreachable Worker proxy URL (`api.thecinderproject.qd.je`)
+- Fixed: snapshots, advisories, ai_analysis, pending_advisories, RPC calls → Supabase REST API directly
+- AUR proxy + accounts/create → Worker direct URL (`cpac-trust-db-api.sabplay-idk.workers.dev`)
+
+---
+
 ## 2026-06-29
 
 ### Advisory Lifecycle & Data Management

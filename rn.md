@@ -1,5 +1,53 @@
 # Release Notes
 
+## v1.7.0 — 2026-06-28
+
+**NVIDIA NIM AI integration, panel redesign, cron-triggered email reports.**
+
+### What's New
+
+- **NVIDIA NIM AI analysis** — Worker proxies requests to NVIDIA NIM free tier (no credit card)
+  - Reasoning model (`nemotron-3-super-120b-a12b`) for security-focused PKGBUILD diff analysis
+  - Nano model (`nemotron-3-nano-30b-a3b`) for weekly report summaries
+  - Structured response: recommendation, summary, severity, affected/safe versions, references
+  - API key stays server-side (never exposed to browser)
+- **Unified Review tab** — all panels share same workflow (package list → compare → AI → publish/submit)
+- **Layout toggle** — Tabs or Side-by-Side, persisted to `localStorage`
+- **Notes system** — floating notes button, auto-saved per package, cleared on publish
+- **Automated weekly email reports** — Resend integration, staggered by account creation date
+  - Reports sent exactly 7 days after previous report per user (DOW matching)
+  - HTML table in email body, ephemeral (stored→sent→deleted)
+  - Zero activity = no email that week
+- **Cloudflare cron trigger** — daily at midnight UTC, calls `/reports/generate` + `/reports/send`
+- **Account management** — admin panel creates volunteer/maintainer accounts (random password emailed)
+- **RLS recursion fix** — `SECURITY DEFINER` helper functions prevent infinite recursion
+- **Worker config** — migrated from `wrangler.toml` to `wrangler.jsonc`
+
+### Database Changes
+
+- **New migration:** `20260629000005_fix_rls_recursion.sql`
+
+### Worker Changes
+
+- `POST /ai/analyze-diff` — NVIDIA NIM reasoning model for diff analysis
+- `POST /ai/generate-report` — NVIDIA NIM nano model for report insights
+- `POST /accounts/create` — admin account creation with Resend email
+- `POST /reports/generate` — weekly report generation
+- `POST /reports/send` — send queued reports via Resend
+- `scheduled()` handler — daily cron trigger
+
+### Migration
+
+```bash
+# Run in Supabase SQL editor:
+# supabase/migrations/20260629000005_fix_rls_recursion.sql
+
+# Deploy Worker:
+# cd worker && wrangler deploy
+```
+
+---
+
 ## v1.6.0 — 2026-06-29
 
 **Weekly advisory reports via email, staggered by account creation date.**
