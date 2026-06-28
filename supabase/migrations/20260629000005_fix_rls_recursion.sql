@@ -59,7 +59,7 @@ CREATE POLICY "profiles_insert_admin_manage" ON profiles
 CREATE POLICY "profiles_update_admin" ON profiles
   FOR UPDATE USING (is_admin());
 
-CREATE POLICY IF NOT EXISTS "profiles_update_maintainers" ON profiles
+CREATE POLICY "profiles_update_maintainers" ON profiles
   FOR UPDATE USING (is_maintainer());
 
 CREATE POLICY "profiles_delete_admin" ON profiles
