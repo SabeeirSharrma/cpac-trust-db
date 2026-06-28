@@ -144,7 +144,7 @@ export default {
 async function proxyAur(targetUrl: string, text = false): Promise<Response> {
   try {
     const res = await fetch(targetUrl, {
-      headers: { "User-Agent": "cpac-trust-db/1.0" },
+      headers: { "User-Agent": "cpac-trust-db/1.0.0" },
     });
     const contentType = text ? "text/plain" : "application/json";
     return new Response(res.body, {
