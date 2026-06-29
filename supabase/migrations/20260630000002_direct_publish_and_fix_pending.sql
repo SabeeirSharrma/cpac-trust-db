@@ -81,20 +81,6 @@ BEGIN
     ) RETURNING id INTO v_advisory_id;
   END IF;
 
-  -- Update reputation
-  INSERT INTO volunteer_reputation (profile_id, total_submissions, approved_submissions, points, trust_level, last_active)
-  VALUES (auth.uid(), 1, 1, 10, 'newcomer', NOW())
-  ON CONFLICT (profile_id) DO UPDATE SET
-    total_submissions = volunteer_reputation.total_submissions + 1,
-    approved_submissions = volunteer_reputation.approved_submissions + 1,
-    points = volunteer_reputation.points + 10,
-    trust_level = CASE
-      WHEN volunteer_reputation.points + 10 >= 100 THEN 'trusted'
-      WHEN volunteer_reputation.points + 10 >= 50 THEN 'established'
-      ELSE volunteer_reputation.trust_level
-    END,
-    last_active = NOW();
-
   RETURN v_advisory_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
