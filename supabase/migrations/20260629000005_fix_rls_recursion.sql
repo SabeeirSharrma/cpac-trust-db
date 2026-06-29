@@ -88,6 +88,12 @@ CREATE POLICY "pending_select_admin" ON pending_advisories
 CREATE POLICY "pending_insert_volunteers" ON pending_advisories
   FOR INSERT WITH CHECK (is_volunteer());
 
+CREATE POLICY "pending_insert_maintainers" ON pending_advisories
+  FOR INSERT WITH CHECK (is_maintainer());
+
+CREATE POLICY "pending_insert_admin" ON pending_advisories
+  FOR INSERT WITH CHECK (is_admin());
+
 CREATE POLICY "pending_update_maintainers" ON pending_advisories
   FOR UPDATE USING (is_maintainer());
 

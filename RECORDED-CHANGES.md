@@ -4,6 +4,28 @@ All notable changes to cpac-trust-db are documented here.
 
 ---
 
+## 2026-06-30 — Direct Publish + Pending Review Fix
+
+### Direct Publish for Admin/Maintainer
+
+- New migration: `20260630000002_direct_publish_and_fix_pending.sql`
+- New RPC function: `direct_publish_advisory()` — admin/maintainer publishes directly to `advisories` table (bypasses `pending_advisories`)
+- Handles upsert: snapshots existing advisory to `advisory_history` before overwriting
+- Awards reputation points on publish
+- RLS updated: admin/maintainer can INSERT/UPDATE `advisories` directly
+
+### Pending Review Fix
+
+- Admin and maintainer `loadPending()` now uses `authHeaders()` instead of `anonHeaders()` — RLS requires `auth.uid()` to match policies
+- Previously returned empty array because anon key had no user context
+
+### Advisories Sort
+
+- All advisory lists now sort by `updated.desc` (latest activity on top)
+- Affected: web advisories page, admin panel published list, maintainer panel published list
+
+---
+
 ## 2026-06-30 — Bidirectional Advisory Statuses
 
 ### Advisory Status Update

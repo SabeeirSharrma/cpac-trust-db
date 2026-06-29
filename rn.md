@@ -1,5 +1,25 @@
 # Release Notes
 
+## v1.8.1 — 2026-06-30
+
+**Direct publish for admin/maintainer, pending review fix, advisories sort.**
+
+### What's Fixed
+
+- **Admin/maintainer submit** — now publishes directly to `advisories` table (bypasses `pending_advisories`). Handles upsert with history snapshot.
+- **Pending review** — admin and maintainer panels now correctly load pending advisories (was using `anonHeaders()` which bypassed RLS user context)
+- **Advisories sort** — all advisory lists now show latest activity on top (`order=updated.desc`)
+
+### Database Changes
+
+- **New migration:** `20260630000002_direct_publish_and_fix_pending.sql`
+  - New RPC: `direct_publish_advisory()` — admin/maintainer direct publish with upsert + reputation
+  - RLS: admin/maintainer can INSERT/UPDATE `advisories` directly
+- **New migration:** `20260630000001_add_maintainer_admin_insert_pending.sql`
+  - INSERT policies for admin/maintainer on `pending_advisories`
+
+---
+
 ## v1.8.0 — 2026-06-30
 
 **Bidirectional advisory statuses — trust attestations in both directions.**
