@@ -162,10 +162,9 @@ BEGIN
   v_cutoff_large := NOW() - INTERVAL '2 days';
   v_cutoff_small := NOW() - INTERVAL '5 days';
 
-  -- Delete snapshots for non-core packages where:
-  -- - The package has a newer snapshot (not the latest version)
-  -- - The snapshot is older than the retention cutoff
-  -- - The package is not a core package
+  -- Delete old snapshots (all packages, including core):
+  -- - Only deletes versions older than the latest (never touches latest)
+  -- - Retention: 2 days for large packages, 5 days for small
   WITH latest_versions AS (
     SELECT package, MAX(last_seen) as max_last_seen
     FROM snapshots
@@ -175,11 +174,10 @@ BEGIN
     SELECT s.id
     FROM snapshots s
     JOIN latest_versions lv ON s.package = lv.package
-    WHERE NOT is_core_package(s.package)
-      AND s.last_seen < lv.max_last_seen  -- not the latest version
+    WHERE s.last_seen < lv.max_last_seen  -- not the latest version
       AND (
-        (s.last_seen < v_cutoff_large)  -- large package cutoff
-        OR (s.last_seen < v_cutoff_small)  -- small package cutoff
+        (s.last_seen < v_cutoff_large)  -- old enough to delete
+        OR (s.last_seen < v_cutoff_small)
       )
   )
   DELETE FROM snapshots WHERE id IN (SELECT id FROM deletable);
@@ -210,11 +208,10 @@ FROM snapshots
 GROUP BY package
 ORDER BY total_submissions DESC;
 
--- View: packages flagged for cleanup (inactive 30+ days, non-core)
+-- View: packages flagged for cleanup (inactive 30+ days)
 CREATE OR REPLACE VIEW packages_flagged_for_cleanup AS
 SELECT * FROM package_storage_usage
-WHERE activity_status = 'inactive'
-  AND NOT is_core_package(package);
+WHERE activity_status = 'inactive';
 
 -- ============================================================
 -- 5. VOLUNTEER INACTIVITY CHECK
