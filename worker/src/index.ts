@@ -77,6 +77,13 @@ export default {
       return proxyAur(`https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${encodeURIComponent(pkg)}`, true);
     }
 
+    // ── Official package proxy: /cpac-trust-db/api/official/pkgbuild/<pkg> ──
+    // Proxies Arch GitLab PKGBUILD fetch for official packages
+    if (route.startsWith("/official/pkgbuild/")) {
+      const pkg = route.slice("/official/pkgbuild/".length);
+      return proxyOfficialPkgbuild(pkg);
+    }
+
     // ── Account creation: POST /cpac-trust-db/api/accounts/create ──
     // Admin-only: creates auth user, inserts profile, sends welcome email
     if (route === "/accounts/create" && request.method === "POST") {
@@ -153,6 +160,21 @@ async function proxyAur(targetUrl: string, text = false): Promise<Response> {
     });
   } catch (e) {
     return json({ error: "AUR proxy error", detail: String(e) }, 502);
+  }
+}
+
+async function proxyOfficialPkgbuild(pkg: string): Promise<Response> {
+  try {
+    const url = `https://gitlab.archlinux.org/archlinux/packaging/packages/${encodeURIComponent(pkg)}/-/raw/main/PKGBUILD`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "cpac-trust-db/1.0.0" },
+    });
+    return new Response(res.body, {
+      status: res.status,
+      headers: { "Content-Type": "text/plain", ...CORS_HEADERS },
+    });
+  } catch (e) {
+    return json({ error: "Official PKGBUILD proxy error", detail: String(e) }, 502);
   }
 }
 
