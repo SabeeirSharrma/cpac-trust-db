@@ -1,8 +1,8 @@
 [meta]
 version = "43577ac143ff6d40"
 db_version = "1.0.0"
-last_updated = "2026-09-22"
-last_sync = "2026-09-22T08:01:56Z"
+last_updated = "2026-09-23"
+last_sync = "2026-09-23T08:04:20Z"
 advisory_count = 7
 snapshot_package_count = 11
 schema_version = 1
